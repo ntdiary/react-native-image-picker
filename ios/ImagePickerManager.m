@@ -57,12 +57,12 @@ RCT_EXPORT_METHOD(launchImageLibrary:(NSDictionary *)options callback:(RCTRespon
 - (void)launchImagePicker:(NSDictionary *)options callback:(RCTResponseSenderBlock)callback
 {
     self.callback = callback;
-    
+
     if (target == camera && [ImagePickerUtils isSimulator]) {
         self.callback(@[@{@"errorCode": errCameraUnavailable}]);
         return;
     }
-    
+
     self.options = options;
 
 #if __has_include(<PhotosUI/PHPicker.h>)
@@ -75,7 +75,7 @@ RCT_EXPORT_METHOD(launchImageLibrary:(NSDictionary *)options callback:(RCTRespon
             picker.presentationController.delegate = self;
 
             if([self.options[@"includeExtra"] boolValue]) {
-                
+
                 [self checkPhotosPermissions:^(BOOL granted) {
                     if (!granted) {
                         self.callback(@[@{@"errorCode": errPermission}]);
@@ -86,7 +86,7 @@ RCT_EXPORT_METHOD(launchImageLibrary:(NSDictionary *)options callback:(RCTRespon
             } else {
                 [self showPickerViewController:picker];
             }
-            
+
             return;
         }
     }
@@ -94,7 +94,7 @@ RCT_EXPORT_METHOD(launchImageLibrary:(NSDictionary *)options callback:(RCTRespon
     UIImagePickerController *picker = [[UIImagePickerController alloc] init];
     [ImagePickerUtils setupPickerFromOptions:picker options:self.options target:target];
     picker.delegate = self;
-    
+
     if([self.options[@"includeExtra"] boolValue]) {
         [self checkPhotosPermissions:^(BOOL granted) {
             if (!granted) {
@@ -120,23 +120,24 @@ RCT_EXPORT_METHOD(launchImageLibrary:(NSDictionary *)options callback:(RCTRespon
 
 -(NSMutableDictionary *)mapImageToAsset:(UIImage *)image data:(NSData *)data phAsset:(PHAsset * _Nullable)phAsset {
     NSString *fileType = [ImagePickerUtils getFileType:data];
-    
+
     if ((target == camera) && [self.options[@"saveToPhotos"] boolValue]) {
         UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil);
     }
-    
+
     if (![fileType isEqualToString:@"gif"]) {
         image = [ImagePickerUtils resizeImage:image
                                      maxWidth:[self.options[@"maxWidth"] floatValue]
                                     maxHeight:[self.options[@"maxHeight"] floatValue]];
     }
 
-    if ([fileType isEqualToString:@"jpg"]) {
-        data = UIImageJPEGRepresentation(image, [self.options[@"quality"] floatValue]);
-    } else if ([fileType isEqualToString:@"png"]) {
-        data = UIImagePNGRepresentation(image);
-    }
-    
+    // just for test
+//    if ([fileType isEqualToString:@"jpg"]) {
+//        data = UIImageJPEGRepresentation(image, [self.options[@"quality"] floatValue]);
+//    } else if ([fileType isEqualToString:@"png"]) {
+//        data = UIImagePNGRepresentation(image);
+//    }
+
     NSMutableDictionary *asset = [[NSMutableDictionary alloc] init];
     asset[@"type"] = [@"image/" stringByAppendingString:fileType];
 
@@ -161,13 +162,13 @@ RCT_EXPORT_METHOD(launchImageLibrary:(NSDictionary *)options callback:(RCTRespon
     asset[@"fileName"] = fileName;
     asset[@"width"] = @(image.size.width);
     asset[@"height"] = @(image.size.height);
-    
+
     if(phAsset){
         asset[@"timestamp"] = [self getDateTimeInUTC:phAsset.creationDate];
         asset[@"id"] = phAsset.localIdentifier;
         // Add more extra data here ...
     }
-    
+
     return asset;
 }
 
@@ -179,10 +180,10 @@ RCT_EXPORT_METHOD(launchImageLibrary:(NSDictionary *)options callback:(RCTRespon
     if ((target == camera) && [self.options[@"saveToPhotos"] boolValue]) {
         UISaveVideoAtPathToSavedPhotosAlbum(url.path, nil, nil, nil);
     }
-    
+
     if (![url.URLByResolvingSymlinksInPath.path isEqualToString:videoDestinationURL.URLByResolvingSymlinksInPath.path]) {
         NSFileManager *fileManager = [NSFileManager defaultManager];
-        
+
         // Delete file if it already exists
         if ([fileManager fileExistsAtPath:videoDestinationURL.path]) {
             [fileManager removeItemAtURL:videoDestinationURL error:nil];
@@ -361,12 +362,12 @@ RCT_EXPORT_METHOD(launchImageLibrary:(NSDictionary *)options callback:(RCTRespon
 
         if ([info[UIImagePickerControllerMediaType] isEqualToString:(NSString *) kUTTypeImage]) {
             UIImage *image = [ImagePickerManager getUIImageFromInfo:info];
-            
+
             [assets addObject:[self mapImageToAsset:image data:[NSData dataWithContentsOfURL:[ImagePickerManager getNSURLFromInfo:info]] phAsset:asset]];
         } else {
             NSError *error;
             NSDictionary *videoAsset = [self mapVideoToAsset:info[UIImagePickerControllerMediaURL] phAsset:asset error:&error];
-                        
+
             if (videoAsset == nil) {
                 NSString *errorMessage = error.localizedFailureReason;
                 if (errorMessage == nil) errorMessage = @"Video asset not found";
@@ -417,7 +418,7 @@ RCT_EXPORT_METHOD(launchImageLibrary:(NSDictionary *)options callback:(RCTRespon
         return;
     }
     photoSelected = YES;
-    
+
     if (results.count == 0) {
         dispatch_async(dispatch_get_main_queue(), ^{
             self.callback(@[@{@"didCancel": @YES}]);
@@ -440,7 +441,7 @@ RCT_EXPORT_METHOD(launchImageLibrary:(NSDictionary *)options callback:(RCTRespon
             PHFetchResult* fetchResult = [PHAsset fetchAssetsWithLocalIdentifiers:@[result.assetIdentifier] options:nil];
             asset = fetchResult.firstObject;
         }
-        
+
         dispatch_group_enter(completionGroup);
 
         if ([provider canLoadObjectOfClass:[UIImage class]]) {
@@ -454,7 +455,7 @@ RCT_EXPORT_METHOD(launchImageLibrary:(NSDictionary *)options callback:(RCTRespon
             [provider loadFileRepresentationForTypeIdentifier:identifier completionHandler:^(NSURL * _Nullable url, NSError * _Nullable error) {
                 NSData *data = [[NSData alloc] initWithContentsOfURL:url];
                 UIImage *image = [[UIImage alloc] initWithData:data];
-                
+
                 assets[index] = [self mapImageToAsset:image data:data phAsset:asset];
                 dispatch_group_leave(completionGroup);
             }];
